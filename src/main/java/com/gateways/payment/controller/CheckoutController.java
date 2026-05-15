@@ -2,8 +2,8 @@ package com.gateways.payment.controller;
 
 import com.gateways.payment.dto.ProductReq;
 import com.gateways.payment.dto.StripeResponse;
-import com.gateways.payment.service.stripeService;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.gateways.payment.service.StripeService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -13,16 +13,20 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/product/v1")
-public class checkoutController {
+public class CheckoutController {
 
-    @Autowired
-    private stripeService stripeService;
+    private final StripeService stripeService;
+
+    public CheckoutController(StripeService stripeService) {
+        this.stripeService = stripeService;
+    }
 
     @PostMapping("/checkout")
-    public ResponseEntity<StripeResponse> checkoutProducts(@RequestBody ProductReq productReq){
+    public ResponseEntity<StripeResponse> checkoutProducts(@Valid @RequestBody ProductReq productReq) {
         StripeResponse stripeResponse = stripeService.checkoutProducts(productReq);
-        return ResponseEntity
-                .status(HttpStatus.OK)
-                .body(stripeResponse);
+        if ("FAILED".equals(stripeResponse.getStatus())) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(stripeResponse);
+        }
+        return ResponseEntity.ok(stripeResponse);
     }
 }
