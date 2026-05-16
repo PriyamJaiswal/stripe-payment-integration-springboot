@@ -160,8 +160,8 @@ Edit `.env` with your Stripe credentials:
 
 ```env
 STRIPE_SECRET_KEY=sk_test_your_key_here
-SERVER_PORT=9091
-APP_BASE_URL=http://localhost:9091
+SERVER_PORT=8080
+APP_BASE_URL=http://localhost:8080
 ```
 
 > **💡 Tip:** Get your test keys from the [Stripe Dashboard → Developers → API Keys](https://dashboard.stripe.com/test/apikeys).
@@ -173,13 +173,13 @@ APP_BASE_URL=http://localhost:9091
 ./mvnw spring-boot:run
 
 # Or with environment variables inline
-STRIPE_SECRET_KEY=sk_test_... SERVER_PORT=9091 APP_BASE_URL=http://localhost:9091 ./mvnw spring-boot:run
+STRIPE_SECRET_KEY=sk_test_... SERVER_PORT=8080 APP_BASE_URL=http://localhost:8080 ./mvnw spring-boot:run
 ```
 
 ### 4. Open in Browser
 
 ```
-http://localhost:9091
+http://localhost:8080
 ```
 
 Select a product, adjust quantity, and click **Checkout** to be redirected to Stripe's hosted payment page.
@@ -264,7 +264,7 @@ To deploy your own instance on Railway:
    | Variable | Value |
    |---|---|
    | `STRIPE_SECRET_KEY` | `sk_test_your_key_here` |
-   | `SERVER_PORT` | `9091` |
+   | `SERVER_PORT` | `8080` |
    | `APP_BASE_URL` | `https://your-app.up.railway.app` |
 
 5. Railway will auto-detect the `Dockerfile` and deploy
@@ -279,10 +279,10 @@ docker build -t stripe-payment-app .
 
 # Run the container
 docker run -d \
-  -p 9091:9091 \
+  -p 8080:8080 \
   -e STRIPE_SECRET_KEY=sk_test_your_key \
-  -e SERVER_PORT=9091 \
-  -e APP_BASE_URL=http://localhost:9091 \
+  -e SERVER_PORT=8080 \
+  -e APP_BASE_URL=http://localhost:8080 \
   --name stripe-app \
   stripe-payment-app
 ```
