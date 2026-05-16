@@ -18,6 +18,6 @@ RUN chown appuser:appuser app.jar
 
 USER appuser
 
-EXPOSE 9091
+EXPOSE 8080
 
 ENTRYPOINT ["java", "-XX:+UseContainerSupport", "-XX:MaxRAMPercentage=75.0", "-jar", "app.jar"]

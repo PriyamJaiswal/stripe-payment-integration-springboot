@@ -8,7 +8,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
-    @Value("${app.baseUrl:http://localhost:9091}")
+    @Value("${app.baseUrl:http://localhost:8080}")
     private String baseUrl;
 
     @Override
