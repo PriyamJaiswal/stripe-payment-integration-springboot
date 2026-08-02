@@ -12,7 +12,7 @@ jobs:
     steps:
       # 1. Checkout Repository
       - name: Checkout Code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       # 2. Setup Java
       - name: Setup Java 21
