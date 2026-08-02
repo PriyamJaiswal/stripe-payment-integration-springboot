@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Checkout — Cartly</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/design-system.css">
+  <script src="https://js.stripe.com/v3/"></script>
+  <style>
+    .checkout-layout{display:grid;grid-template-columns:1fr 380px;gap:32px;padding:24px 0 60px}
+    .step-content{display:none}.step-content.active{display:block}
+    .addr-cards{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+    .addr-card{padding:16px;border:2px solid var(--gray-200);border-radius:var(--radius-lg);cursor:pointer;transition:var(--transition);position:relative}
+    .addr-card:hover{border-color:var(--primary-light)}
+    .addr-card.selected{border-color:var(--primary);background:var(--primary-light)}
+    .addr-card .name{font-weight:600;margin-bottom:4px}
+    .addr-card .details{font-size:.85rem;color:var(--gray-600);line-height:1.6}
+    .addr-card .actions{position:absolute;top:12px;right:12px;display:flex;gap:4px}
+    .addr-card .actions button{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:var(--transition);color:var(--gray-400)}
+    .addr-card .actions button:hover{background:var(--gray-100);color:var(--primary)}
+    .addr-card .actions button svg{width:14px;height:14px}
+    .addr-new{border:2px dashed var(--gray-300);display:flex;align-items:center;justify-content:center;gap:8px;font-weight:600;color:var(--gray-500);min-height:140px}
+    .addr-new:hover{border-color:var(--primary);color:var(--primary)}
+    .ship-options{display:flex;flex-direction:column;gap:12px}
+    .ship-option{display:flex;align-items:center;gap:16px;padding:16px;border:2px solid var(--gray-200);border-radius:var(--radius-lg);cursor:pointer;transition:var(--transition)}
+    .ship-option:hover{border-color:var(--primary-light)}
+    .ship-option.selected{border-color:var(--primary);background:var(--primary-light)}
+    .ship-radio{width:20px;height:20px;border:2px solid var(--gray-300);border-radius:50%;flex-shrink:0;position:relative;transition:var(--transition)}
+    .ship-option.selected .ship-radio{border-color:var(--primary)}
+    .ship-option.selected .ship-radio::after{content:'';position:absolute;inset:3px;background:var(--primary);border-radius:50%}
+    .ship-info{flex:1}
+    .ship-name{font-weight:600;font-size:.95rem}
+    .ship-desc{font-size:.8rem;color:var(--gray-500)}
+    .ship-price{font-weight:700;font-size:.95rem;white-space:nowrap}
+    .pay-methods{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .pay-method{padding:16px;border:2px solid var(--gray-200);border-radius:var(--radius-lg);cursor:pointer;transition:var(--transition);text-align:center}
+    .pay-method:hover{border-color:var(--primary-light)}
+    .pay-method.selected{border-color:var(--primary);background:var(--primary-light)}
+    .pay-method svg{width:28px;height:28px;margin-bottom:6px;color:var(--gray-600)}
+    .pay-method.selected svg{color:var(--primary)}
+    .pay-method-name{font-weight:600;font-size:.85rem}
+    .pay-method-desc{font-size:.7rem;color:var(--gray-500);margin-top:2px}
+    .review-block{background:var(--gray-50);border-radius:var(--radius-lg);padding:20px;margin-bottom:16px}
+    .review-block-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+    .review-block h4{font-size:.95rem}
+    .review-block .edit-link{font-size:.8rem;color:var(--primary);cursor:pointer;font-weight:600}
+    .review-item-row{display:flex;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid var(--gray-200)}
+    .review-item-row:last-child{border:none}
+    .review-item-row img{width:48px;height:48px;border-radius:var(--radius);object-fit:cover}
+    .review-item-row .info{flex:1;font-size:.85rem}
+    .review-item-row .info .name{font-weight:600}
+    .review-item-row .price{font-weight:600;font-size:.9rem}
+    .terms-check{display:flex;align-items:flex-start;gap:10px;margin:20px 0}
+    .terms-check input[type=checkbox]{width:18px;height:18px;accent-color:var(--primary);margin-top:2px}
+    .terms-check label{font-size:.85rem;color:var(--gray-600);line-height:1.5}
+    @media(max-width:768px){
+      .checkout-layout{grid-template-columns:1fr}
+      .addr-cards{grid-template-columns:1fr}
+      .pay-methods{grid-template-columns:1fr}
+    }
+  </style>
+</head>
+<body>
+  <div id="navbar-mount"></div>
+  <main>
+    <div class="container">
+      <h2 style="padding-top:24px" class="slide-up">Checkout</h2>
+      <div id="stepper-mount" class="slide-up"></div>
+      <div class="checkout-layout">
+        <div id="step-panels"></div>
+        <div class="slide-up delay-1">
+          <div class="order-summary" id="order-summary"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Address Modal -->
+  <div class="modal-overlay" id="addr-modal">
+    <div class="modal">
+      <div class="modal-header"><h3 id="addr-modal-title">Add Address</h3><button class="modal-close" onclick="document.getElementById('addr-modal').classList.remove('active')">✕</button></div>
+      <form id="addr-form">
+        <input type="hidden" id="addr-id">
+        <div class="form-group" style="margin-bottom:12px"><label class="form-label">Full Name</label><input class="form-input" id="addr-name" required placeholder="John Doe"></div>
+        <div class="form-group" style="margin-bottom:12px"><label class="form-label">Phone</label><input class="form-input" id="addr-phone" required placeholder="+1 234 567 8900"></div>
+        <div class="form-group" style="margin-bottom:12px"><label class="form-label">Address Line</label><input class="form-input" id="addr-line" required placeholder="123 Main Street, Apt 4"></div>
+        <div class="form-row" style="margin-bottom:12px"><div class="form-group"><label class="form-label">City</label><input class="form-input" id="addr-city" required placeholder="New York"></div><div class="form-group"><label class="form-label">State</label><input class="form-input" id="addr-state" required placeholder="NY"></div></div>
+        <div class="form-row" style="margin-bottom:12px"><div class="form-group"><label class="form-label">Country</label><input class="form-input" id="addr-country" required value="United States"></div><div class="form-group"><label class="form-label">Pincode</label><input class="form-input" id="addr-pin" required placeholder="10001"></div></div>
+        <label style="display:flex;align-items:center;gap:8px;margin-bottom:16px;font-size:.85rem"><input type="checkbox" id="addr-default" style="accent-color:var(--primary)"> Set as default address</label>
+        <button type="submit" class="btn btn-primary btn-full">Save Address</button>
+      </form>
+    </div>
+  </div>
+
+  <div id="footer-mount"></div>
+  <script src="/js/store.js"></script>
+  <script src="/js/app.js"></script>
+  <script>
+    document.getElementById('navbar-mount').innerHTML = renderNavbar('');
+    document.getElementById('footer-mount').innerHTML = renderFooter();
+    initNavbar();
+
+    let currentStep = 0;
+    const steps = ['Address', 'Shipping', 'Payment', 'Review'];
+    let selectedAddress = Store.getDefaultAddress();
+    let selectedShipping = Store.getShippingOptions()[0];
+    let selectedPayment = 'card';
+
+    function renderStepper() {
+      document.getElementById('stepper-mount').innerHTML = `<div class="stepper">${steps.map((s, i) => `
+        <div class="step ${i === currentStep ? 'active' : ''} ${i < currentStep ? 'completed' : ''}">
+          <span class="step-num">${i < currentStep ? '✓' : i + 1}</span>
+          <span class="step-label">${s}</span>
+        </div>${i < steps.length - 1 ? `<div class="step-line ${i < currentStep ? 'completed' : ''}"></div>` : ''}
+      `).join('')}</div>`;
+    }
+
+    function renderAddressStep() {
+      const addrs = Store.getAddresses();
+      return `<div class="card"><div class="card-body"><h3 style="margin-bottom:16px">Select Delivery Address</h3>
+        <div class="addr-cards">
+          ${addrs.map(a => `<div class="addr-card ${selectedAddress && selectedAddress.id === a.id ? 'selected' : ''}" onclick="selectAddress('${a.id}')">
+            <div class="actions"><button onclick="event.stopPropagation();editAddress('${a.id}')">${Icons.edit}</button><button onclick="event.stopPropagation();Store.deleteAddress('${a.id}');if(selectedAddress&&selectedAddress.id==='${a.id}')selectedAddress=Store.getDefaultAddress();renderStepPanels();">${Icons.trash}</button></div>
+            ${a.isDefault ? '<span class="badge badge-primary" style="margin-bottom:8px">Default</span>' : ''}
+            <div class="name">${a.fullName}</div>
+            <div class="details">${a.line}<br>${a.city}, ${a.state} ${a.pin}<br>${a.country}<br>📞 ${a.phone}</div>
+          </div>`).join('')}
+          <div class="addr-card addr-new" onclick="openAddrModal()"><span>${Icons.plus}</span> Add New Address</div>
+        </div>
+        <button class="btn btn-primary btn-lg" ${!selectedAddress ? 'disabled' : ''} onclick="goToStep(1)">Continue to Shipping →</button>
+      </div></div>`;
+    }
+
+    function renderShippingStep() {
+      const options = Store.getShippingOptions();
+      return `<div class="card"><div class="card-body"><h3 style="margin-bottom:16px">Choose Shipping Method</h3>
+        <div class="ship-options">
+          ${options.map(o => `<div class="ship-option ${selectedShipping.id === o.id ? 'selected' : ''}" onclick="selectedShipping=Store.getShippingOptions().find(s=>s.id==='${o.id}');renderStepPanels();renderOrderSummary()">
+            <div class="ship-radio"></div>
+            <div class="ship-info"><div class="ship-name">${o.name}</div><div class="ship-desc">${o.desc} · ${o.days}</div></div>
+            <div class="ship-price">${o.price === 0 ? '<span style="color:var(--success)">Free</span>' : formatPrice(o.price)}</div>
+          </div>`).join('')}
+        </div>
+        <div style="display:flex;gap:12px;margin-top:24px">
+          <button class="btn btn-outline" onclick="goToStep(0)">← Back</button>
+          <button class="btn btn-primary btn-lg" style="flex:1" onclick="goToStep(2)">Continue to Payment →</button>
+        </div>
+      </div></div>`;
+    }
+
+    function renderPaymentStep() {
+      const methods = [
+        { id: 'card', name: 'Credit / Debit Card', desc: 'Stripe Secure Checkout', icon: Icons.creditCard },
+        { id: 'upi', name: 'UPI', desc: 'Google Pay, PhonePe', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="28" height="28"><path d="M12 2v20M2 12h20" stroke-linecap="round"/></svg>` },
+        { id: 'netbanking', name: 'Net Banking', desc: 'All major banks', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="28" height="28"><path d="M12 2L2 7h20L12 2zM4 7v10M20 7v10M8 7v10M16 7v10M12 7v10M2 17h20v3H2v-3z" stroke-linecap="round" stroke-linejoin="round"/></svg>` },
+        { id: 'wallet', name: 'Wallet', desc: 'Paytm, Amazon Pay', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="28" height="28"><path d="M21 12V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2h14a2 2 0 002-2v-5zm-5 1a1 1 0 110-2 1 1 0 010 2z" stroke-linecap="round"/></svg>` },
+        { id: 'cod', name: 'Cash on Delivery', desc: 'Pay when delivered', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="28" height="28"><circle cx="12" cy="12" r="8"/><path d="M14.5 9.5a2.5 2.5 0 00-5 0c0 2.5 5 2.5 5 5a2.5 2.5 0 01-5 0M12 7v1M12 16v1" stroke-linecap="round"/></svg>` },
+        { id: 'emi', name: 'EMI', desc: 'Easy installments', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="28" height="28"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20" stroke-linecap="round"/></svg>` },
+      ];
+      return `<div class="card"><div class="card-body"><h3 style="margin-bottom:16px">Payment Method</h3>
+        <div class="pay-methods">${methods.map(m => `<div class="pay-method ${selectedPayment === m.id ? 'selected' : ''}" onclick="selectedPayment='${m.id}';renderStepPanels()">
+          ${m.icon}<div class="pay-method-name">${m.name}</div><div class="pay-method-desc">${m.desc}</div>
+        </div>`).join('')}</div>
+        ${selectedPayment === 'card' ? '<p style="margin-top:16px;font-size:.85rem;color:var(--gray-500);display:flex;align-items:center;gap:6px">' + Icons.shield + ' You\'ll be redirected to Stripe\'s secure checkout</p>' : ''}
+        <div style="display:flex;gap:12px;margin-top:24px">
+          <button class="btn btn-outline" onclick="goToStep(1)">← Back</button>
+          <button class="btn btn-primary btn-lg" style="flex:1" onclick="goToStep(3)">Review Order →</button>
+        </div>
+      </div></div>`;
+    }
+
+    function renderReviewStep() {
+      const items = Store.getCartItems();
+      const payLabels = { card: 'Credit / Debit Card (Stripe)', upi: 'UPI', netbanking: 'Net Banking', wallet: 'Wallet', cod: 'Cash on Delivery', emi: 'EMI' };
+      return `<div class="card"><div class="card-body"><h3 style="margin-bottom:20px">Review Your Order</h3>
+        <div class="review-block">
+          <div class="review-block-header"><h4>📦 Items (${items.length})</h4></div>
+          ${items.map(i => `<div class="review-item-row"><img src="${i.product.image}" alt="${i.product.name}"><div class="info"><div class="name">${i.product.name}</div><div>Qty: ${i.qty}</div></div><div class="price">${formatPrice(i.product.price * i.qty)}</div></div>`).join('')}
+        </div>
+        <div class="review-block">
+          <div class="review-block-header"><h4>📍 Delivery Address</h4><span class="edit-link" onclick="goToStep(0)">Change</span></div>
+          <p style="font-size:.85rem;color:var(--gray-600);line-height:1.6">${selectedAddress ? `<strong>${selectedAddress.fullName}</strong><br>${selectedAddress.line}<br>${selectedAddress.city}, ${selectedAddress.state} ${selectedAddress.pin}<br>${selectedAddress.phone}` : 'No address selected'}</p>
+        </div>
+        <div class="review-block">
+          <div class="review-block-header"><h4>🚚 Shipping</h4><span class="edit-link" onclick="goToStep(1)">Change</span></div>
+          <p style="font-size:.85rem;color:var(--gray-600)">${selectedShipping.name} — ${selectedShipping.days}</p>
+        </div>
+        <div class="review-block">
+          <div class="review-block-header"><h4>💳 Payment</h4><span class="edit-link" onclick="goToStep(2)">Change</span></div>
+          <p style="font-size:.85rem;color:var(--gray-600)">${payLabels[selectedPayment] || selectedPayment}</p>
+        </div>
+        <div class="terms-check">
+          <input type="checkbox" id="terms-cb">
+          <label for="terms-cb">I agree to the <a href="#" style="color:var(--primary);font-weight:600">Terms & Conditions</a> and <a href="#" style="color:var(--primary);font-weight:600">Privacy Policy</a></label>
+        </div>
+        <div style="display:flex;gap:12px">
+          <button class="btn btn-outline" onclick="goToStep(2)">← Back</button>
+          <button class="btn btn-primary btn-lg" style="flex:1" id="place-order-btn" onclick="placeOrder()">Place Order</button>
+        </div>
+      </div></div>`;
+    }
+
+    function renderStepPanels() {
+      const renders = [renderAddressStep, renderShippingStep, renderPaymentStep, renderReviewStep];
+      document.getElementById('step-panels').innerHTML = renders.map((fn, i) =>
+        `<div class="step-content ${i === currentStep ? 'active' : ''} slide-up">${fn()}</div>`
+      ).join('');
+    }
+
+    function renderOrderSummary() {
+      const items = Store.getCartItems();
+      const subtotal = Store.getCartTotal();
+      const shipCost = selectedShipping.price;
+      const tax = Math.round(subtotal * 0.08);
+      const total = subtotal + shipCost + tax;
+      document.getElementById('order-summary').innerHTML = `
+        <h3>Order Summary</h3>
+        ${items.map(i => `<div class="summary-item"><span>${i.product.name} × ${i.qty}</span><span>${formatPrice(i.product.price * i.qty)}</span></div>`).join('')}
+        <hr class="summary-divider">
+        <div class="summary-item"><span>Subtotal</span><span>${formatPrice(subtotal)}</span></div>
+        <div class="summary-item"><span>Shipping</span><span>${shipCost === 0 ? '<span style="color:var(--success)">Free</span>' : formatPrice(shipCost)}</span></div>
+        <div class="summary-item"><span>Tax (8%)</span><span>${formatPrice(tax)}</span></div>
+        <div class="summary-item total"><span>Total</span><span>${formatPrice(total)}</span></div>
+        <p style="margin-top:12px;font-size:.75rem;color:var(--gray-500);display:flex;align-items:center;gap:4px">${Icons.shield} Secure checkout powered by Stripe</p>
+      `;
+    }
+
+    function goToStep(n) {
+      if (n === 1 && !selectedAddress) { Toast.warning('Please select a delivery address'); return; }
+      currentStep = n;
+      renderStepper();
+      renderStepPanels();
+      renderOrderSummary();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function selectAddress(id) {
+      selectedAddress = Store.getAddresses().find(a => a.id === id);
+      renderStepPanels();
+    }
+
+    function openAddrModal(addr) {
+      const modal = document.getElementById('addr-modal');
+      document.getElementById('addr-modal-title').textContent = addr ? 'Edit Address' : 'Add Address';
+      document.getElementById('addr-id').value = addr ? addr.id : '';
+      document.getElementById('addr-name').value = addr ? addr.fullName : '';
+      document.getElementById('addr-phone').value = addr ? addr.phone : '';
+      document.getElementById('addr-line').value = addr ? addr.line : '';
+      document.getElementById('addr-city').value = addr ? addr.city : '';
+      document.getElementById('addr-state').value = addr ? addr.state : '';
+      document.getElementById('addr-country').value = addr ? addr.country : 'United States';
+      document.getElementById('addr-pin').value = addr ? addr.pin : '';
+      document.getElementById('addr-default').checked = addr ? addr.isDefault : false;
+      modal.classList.add('active');
+    }
+
+    function editAddress(id) {
+      openAddrModal(Store.getAddresses().find(a => a.id === id));
+    }
+
+    document.getElementById('addr-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const addr = {
+        id: document.getElementById('addr-id').value || undefined,
+        fullName: document.getElementById('addr-name').value,
+        phone: document.getElementById('addr-phone').value,
+        line: document.getElementById('addr-line').value,
+        city: document.getElementById('addr-city').value,
+        state: document.getElementById('addr-state').value,
+        country: document.getElementById('addr-country').value,
+        pin: document.getElementById('addr-pin').value,
+        isDefault: document.getElementById('addr-default').checked,
+      };
+      Store.saveAddress(addr);
+      if (!selectedAddress) selectedAddress = addr;
+      document.getElementById('addr-modal').classList.remove('active');
+      Toast.success('Address saved!');
+      renderStepPanels();
+    });
+
+    async function placeOrder() {
+      const cb = document.getElementById('terms-cb');
+      if (!cb || !cb.checked) { Toast.warning('Please accept the terms & conditions'); return; }
+
+      const items = Store.getCartItems();
+      const subtotal = Store.getCartTotal();
+      const shipCost = selectedShipping.price;
+      const tax = Math.round(subtotal * 0.08);
+      const total = subtotal + shipCost + tax;
+
+      // Save order locally
+      const order = Store.createOrder({
+        items: items.map(i => ({ id: i.id, name: i.product.name, price: i.product.price, qty: i.qty, image: i.product.image })),
+        address: selectedAddress,
+        shipping: selectedShipping,
+        payment: selectedPayment,
+        subtotal, shippingCost: shipCost, tax, total,
+      });
+
+      localStorage.setItem('lastOrderId', order.id);
+
+      if (selectedPayment === 'card') {
+        // Redirect to Stripe for each cart item (uses existing endpoint)
+        // For simplicity, we combine into a single checkout with the first item name
+        const combinedName = items.map(i => i.product.name).join(' + ');
+        await StripeHelper.checkout(combinedName, total, 1);
+      } else {
+        Store.clearCart();
+        window.location.href = '/success';
+      }
+    }
+
+    // Init
+    if (Store.getCartItems().length === 0) {
+      document.querySelector('.container').innerHTML = `<div class="empty-state" style="padding:80px 20px"><h3>Your cart is empty</h3><p>Add some products before checking out.</p><a href="/" class="btn btn-primary btn-lg" style="margin-top:16px">Shop Now</a></div>`;
+    } else {
+      renderStepper();
+      renderStepPanels();
+      renderOrderSummary();
+    }
+  </script>
+</body>
+</html>

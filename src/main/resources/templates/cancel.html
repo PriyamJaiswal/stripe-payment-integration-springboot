@@ -1,10 +1,63 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Payment Cancelled</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Payment Failed — Cartly</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/design-system.css">
+  <style>
+    .fail-page{min-height:80vh;display:flex;align-items:center;justify-content:center;padding:40px 20px}
+    .fail-card{background:var(--white);border-radius:var(--radius-xl);padding:48px;max-width:520px;width:100%;text-align:center;box-shadow:var(--shadow-xl);animation:scaleIn .5s ease}
+    .fail-icon{width:96px;height:96px;margin:0 auto 24px;background:var(--danger-light);border-radius:50%;display:flex;align-items:center;justify-content:center}
+    .fail-icon svg{width:48px;height:48px;color:var(--danger)}
+    .fail-card h1{font-size:1.75rem;margin-bottom:8px;color:var(--danger)}
+    .fail-card .subtitle{color:var(--gray-500);margin-bottom:32px;font-size:.95rem;line-height:1.6}
+    .fail-actions{display:flex;flex-direction:column;gap:10px}
+    .fail-help{margin-top:24px;padding:20px;background:var(--gray-50);border-radius:var(--radius-lg);text-align:left}
+    .fail-help h4{margin-bottom:8px;font-size:.9rem}
+    .fail-help ul{padding-left:18px;list-style:disc}
+    .fail-help li{font-size:.85rem;color:var(--gray-600);margin-bottom:6px;line-height:1.5}
+  </style>
 </head>
 <body>
-<h1> Payment Cancelled. Try again!</h1>
+  <div id="navbar-mount"></div>
+  <main>
+    <div class="fail-page">
+      <div class="fail-card">
+        <div class="fail-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </div>
+        <h1>Payment Failed</h1>
+        <p class="subtitle">We couldn't process your payment. Don't worry — no charges were made to your account.</p>
+        <div class="fail-actions">
+          <a href="/checkout" class="btn btn-primary btn-full btn-lg">Retry Payment</a>
+          <a href="/checkout" class="btn btn-outline btn-full" onclick="localStorage.setItem('checkoutStep','2')">Change Payment Method</a>
+          <a href="mailto:support@cartly.com" class="btn btn-ghost btn-full">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 01-.825-.242m9.345-8.334a2.126 2.126 0 00-.476-.095 48.64 48.64 0 00-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0011.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155"/></svg>
+            Contact Support
+          </a>
+        </div>
+        <div class="fail-help">
+          <h4>Common reasons for payment failure:</h4>
+          <ul>
+            <li>Insufficient funds in your account</li>
+            <li>Card expired or details entered incorrectly</li>
+            <li>Transaction blocked by your bank's security</li>
+            <li>Network connectivity issues during checkout</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </main>
+  <div id="footer-mount"></div>
+
+  <script src="/js/store.js"></script>
+  <script src="/js/app.js"></script>
+  <script>
+    document.getElementById('navbar-mount').innerHTML = renderNavbar('');
+    document.getElementById('footer-mount').innerHTML = renderFooter();
+    initNavbar();
+  </script>
 </body>
 </html>

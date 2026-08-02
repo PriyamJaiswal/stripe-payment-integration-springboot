@@ -1,29 +1,10 @@
-# Build stage
-FROM maven:3.9-eclipse-temurin-21 AS build
-WORKDIR /app
-COPY pom.xml .
-RUN mvn dependency:go-offline -B
-COPY src ./src
-RUN mvn clean package -DskipTests -B
-
-# Run stage
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:21
 WORKDIR /app
 
-# Security: non-root user
-RUN groupadd -r appuser && useradd -r -g appuser appuser
+# Copies the pre-built JAR from the GitHub runner's target folder
+COPY target/*.jar app.jar
 
-COPY --from=build /app/target/*.jar app.jar
-RUN chown appuser:appuser app.jar
-
-USER appuser
-
+# Expose port 8080
 EXPOSE 8080
 
-ENTRYPOINT ["java", \
-  "-XX:+UseContainerSupport", \
-  "-XX:MaxRAMPercentage=60.0", \
-  "-XX:MinRAMPercentage=40.0", \
-  "-XX:+ExitOnOutOfMemoryError", \
-  "-Djava.security.egd=file:/dev/./urandom", \
-  "-jar", "app.jar"]
+ENTRYPOINT ["java", "-jar", "app.jar"]

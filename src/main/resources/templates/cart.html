@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shopping Cart — Cartly</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/design-system.css">
+  <script src="https://js.stripe.com/v3/"></script>
+  <style>
+    .cart-layout{display:grid;grid-template-columns:1fr 380px;gap:32px;padding:40px 0}
+    .cart-item{display:flex;gap:20px;padding:20px;background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius-lg);margin-bottom:16px;transition:var(--transition)}
+    .cart-item:hover{box-shadow:var(--shadow-md)}
+    .cart-item-img{width:120px;height:120px;object-fit:cover;border-radius:var(--radius);background:var(--gray-100);flex-shrink:0}
+    .cart-item-info{flex:1;display:flex;flex-direction:column;justify-content:space-between}
+    .cart-item-top{display:flex;justify-content:space-between;align-items:flex-start}
+    .cart-item-name{font-weight:600;font-size:1rem;margin-bottom:4px}
+    .cart-item-cat{font-size:.75rem;color:var(--gray-500)}
+    .cart-item-price{font-weight:700;font-size:1.1rem;white-space:nowrap}
+    .cart-item-bottom{display:flex;align-items:center;justify-content:space-between}
+    .cart-item-actions{display:flex;gap:12px}
+    .cart-item-actions button{font-size:.8rem;color:var(--gray-500);display:flex;align-items:center;gap:4px;transition:var(--transition)}
+    .cart-item-actions button:hover{color:var(--danger)}
+    .cart-item-actions button svg{width:16px;height:16px}
+    .coupon-box{display:flex;gap:8px;margin-top:16px}
+    .coupon-box input{flex:1;padding:10px 14px;border:1.5px solid var(--gray-300);border-radius:var(--radius);font-size:.85rem}
+    .coupon-box input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-light)}
+    @media(max-width:768px){
+      .cart-layout{grid-template-columns:1fr}
+      .cart-item-img{width:80px;height:80px}
+    }
+  </style>
+</head>
+<body>
+  <div id="navbar-mount"></div>
+  <main>
+    <div class="container">
+      <h1 style="padding-top:32px;margin-bottom:8px" class="slide-up">Shopping Cart</h1>
+      <p class="text-muted slide-up" id="cart-count-text"></p>
+      <div class="cart-layout" id="cart-layout"></div>
+    </div>
+  </main>
+  <div id="footer-mount"></div>
+
+  <script src="/js/store.js"></script>
+  <script src="/js/app.js"></script>
+  <script>
+    document.getElementById('navbar-mount').innerHTML = renderNavbar('cart');
+    document.getElementById('footer-mount').innerHTML = renderFooter();
+    initNavbar();
+
+    let couponApplied = false;
+    let couponDiscount = 0;
+
+    function renderCart() {
+      const items = Store.getCartItems();
+      const countText = document.getElementById('cart-count-text');
+      countText.textContent = `${items.length} item${items.length !== 1 ? 's' : ''} in your cart`;
+
+      if (items.length === 0) {
+        document.getElementById('cart-layout').innerHTML = `
+          <div class="empty-state" style="grid-column:1/-1;padding:80px 20px">
+            <div style="width:80px;height:80px;margin:0 auto 16px;color:var(--gray-300)">${Icons.cart}</div>
+            <h3>Your cart is empty</h3>
+            <p>Looks like you haven't added anything to your cart yet.</p>
+            <a href="/" class="btn btn-primary btn-lg">Start Shopping</a>
+          </div>`;
+        return;
+      }
+
+      const subtotal = Store.getCartTotal();
+      const shipping = subtotal >= 5000 ? 0 : 499;
+      const tax = Math.round(subtotal * 0.08);
+      const discount = couponApplied ? couponDiscount : 0;
+      const total = subtotal + shipping + tax - discount;
+
+      document.getElementById('cart-layout').innerHTML = `
+        <div class="slide-up">
+          ${items.map(item => `
+            <div class="cart-item">
+              <img src="${item.product.image}" alt="${item.product.name}" class="cart-item-img" onclick="window.location.href='/product?id=${item.id}'" style="cursor:pointer">
+              <div class="cart-item-info">
+                <div class="cart-item-top">
+                  <div>
+                    <div class="cart-item-name">${item.product.name}</div>
+                    <div class="cart-item-cat">${item.product.category}</div>
+                  </div>
+                  <div class="cart-item-price">${formatPrice(item.product.price * item.qty)}</div>
+                </div>
+                <div class="cart-item-bottom">
+                  <div class="qty-selector">
+                    <button class="qty-btn" onclick="Store.updateQty('${item.id}', ${item.qty - 1});renderCart()">−</button>
+                    <span class="qty-val">${item.qty}</span>
+                    <button class="qty-btn" onclick="Store.updateQty('${item.id}', ${item.qty + 1});renderCart()">+</button>
+                  </div>
+                  <div class="cart-item-actions">
+                    <button onclick="Store.toggleWishlist('${item.id}');Store.removeFromCart('${item.id}');Toast.info('Saved for later');renderCart()">${Icons.heart} Save</button>
+                    <button onclick="Store.removeFromCart('${item.id}');Toast.show('Removed from cart','warning');renderCart()">${Icons.trash} Remove</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `).join('')}
+          <div class="coupon-box">
+            <input type="text" placeholder="Enter coupon code" id="coupon-input" value="${couponApplied ? 'SAVE10' : ''}">
+            <button class="btn btn-outline" onclick="applyCoupon()">${couponApplied ? 'Remove' : 'Apply'}</button>
+          </div>
+        </div>
+        <div class="slide-up delay-1">
+          <div class="order-summary">
+            <h3>Order Summary</h3>
+            <div class="summary-item"><span>Subtotal</span><span>${formatPrice(subtotal)}</span></div>
+            <div class="summary-item"><span>Shipping</span><span>${shipping === 0 ? '<span style="color:var(--success)">Free</span>' : formatPrice(shipping)}</span></div>
+            <div class="summary-item"><span>Tax (8%)</span><span>${formatPrice(tax)}</span></div>
+            ${couponApplied ? `<div class="summary-item" style="color:var(--success)"><span>Coupon (SAVE10)</span><span>-${formatPrice(discount)}</span></div>` : ''}
+            <hr class="summary-divider">
+            <div class="summary-item total"><span>Total</span><span>${formatPrice(total)}</span></div>
+            ${shipping === 0 ? '' : `<p class="text-xs text-muted" style="margin-top:8px">Add ${formatPrice(5000 - subtotal)} more for free shipping</p>`}
+            <a href="/checkout" class="btn btn-primary btn-full btn-lg" style="margin-top:20px">Proceed to Checkout</a>
+            <a href="/" class="btn btn-ghost btn-full" style="margin-top:8px">${Icons.arrowLeft} Continue Shopping</a>
+          </div>
+        </div>
+      `;
+    }
+
+    function applyCoupon() {
+      if (couponApplied) {
+        couponApplied = false;
+        couponDiscount = 0;
+        Toast.info('Coupon removed');
+      } else {
+        const code = document.getElementById('coupon-input').value.trim().toUpperCase();
+        if (code === 'SAVE10') {
+          couponApplied = true;
+          couponDiscount = Math.round(Store.getCartTotal() * 0.1);
+          Toast.success('Coupon applied! 10% off');
+        } else {
+          Toast.error('Invalid coupon code');
+          return;
+        }
+      }
+      renderCart();
+    }
+
+    renderCart();
+  </script>
+</body>
+</html>

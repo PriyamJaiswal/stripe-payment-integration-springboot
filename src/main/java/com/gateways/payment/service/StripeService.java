@@ -6,6 +6,7 @@ import com.stripe.Stripe;
 import com.stripe.exception.StripeException;
 import com.stripe.model.checkout.Session;
 import com.stripe.param.checkout.SessionCreateParams;
+import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,8 +23,12 @@ public class StripeService {
         @Value("${app.baseUrl}")
         private String baseUrl;
 
-        public StripeResponse checkoutProducts(ProductReq productRequest) {
+        @PostConstruct
+        public void init() {
                 Stripe.apiKey = secretKey;
+        }
+
+        public StripeResponse checkoutProducts(ProductReq productRequest) {
 
                 SessionCreateParams.LineItem.PriceData.ProductData productData = SessionCreateParams.LineItem.PriceData.ProductData
                                 .builder()

@@ -24,4 +24,14 @@ public class GlobalExceptionHandler {
                         .build()
         );
     }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<StripeResponse> handleGenericException(Exception ex) {
+        return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR).body(
+                StripeResponse.builder()
+                        .status("FAILED")
+                        .message("An unexpected error occurred: " + ex.getMessage())
+                        .build()
+        );
+    }
 }

@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Order History — Cartly</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/design-system.css">
+  <style>
+    .orders-page{padding:40px 0 60px}
+    .order-card{background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius-lg);margin-bottom:16px;overflow:hidden;transition:var(--transition)}
+    .order-card:hover{box-shadow:var(--shadow-md)}
+    .order-header{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;background:var(--gray-50);border-bottom:1px solid var(--gray-200);flex-wrap:wrap;gap:12px}
+    .order-header-left{display:flex;gap:24px;flex-wrap:wrap}
+    .order-header-item{font-size:.8rem}
+    .order-header-item .label{color:var(--gray-500);display:block}
+    .order-header-item .value{font-weight:600;font-size:.85rem}
+    .order-body{padding:16px 20px}
+    .order-items{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+    .order-thumb{width:56px;height:56px;object-fit:cover;border-radius:var(--radius);background:var(--gray-100)}
+    .order-footer{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;border-top:1px solid var(--gray-200);flex-wrap:wrap;gap:8px}
+    .order-total{font-weight:700;font-size:1rem}
+
+    /* Order Detail */
+    .detail-back{display:flex;align-items:center;gap:8px;color:var(--gray-600);font-size:.9rem;margin-bottom:24px;cursor:pointer;transition:var(--transition)}
+    .detail-back:hover{color:var(--primary)}
+    .detail-back svg{width:18px;height:18px}
+    .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:32px}
+    .detail-block{background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius-lg);padding:20px}
+    .detail-block h4{margin-bottom:12px;display:flex;align-items:center;gap:8px}
+    .detail-block h4 svg{width:18px;height:18px;color:var(--primary)}
+    .detail-row{display:flex;justify-content:space-between;padding:6px 0;font-size:.85rem}
+    .detail-row .label{color:var(--gray-500)}
+
+    /* Timeline */
+    .timeline{position:relative;padding-left:32px}
+    .timeline::before{content:'';position:absolute;left:11px;top:4px;bottom:4px;width:2px;background:var(--gray-200)}
+    .timeline-item{position:relative;padding-bottom:24px}
+    .timeline-item:last-child{padding-bottom:0}
+    .timeline-dot{width:24px;height:24px;border-radius:50%;border:2px solid var(--gray-300);background:var(--white);position:absolute;left:-32px;top:0;display:flex;align-items:center;justify-content:center}
+    .timeline-dot.active{border-color:var(--success);background:var(--success)}
+    .timeline-dot.active svg{width:12px;height:12px;color:var(--white)}
+    .timeline-dot.current{border-color:var(--primary);background:var(--primary-light)}
+    .timeline-title{font-weight:600;font-size:.9rem}
+    .timeline-date{font-size:.75rem;color:var(--gray-500)}
+
+    .detail-items .item-row{display:flex;gap:16px;align-items:center;padding:12px 0;border-bottom:1px solid var(--gray-100)}
+    .detail-items .item-row:last-child{border:none}
+    .detail-items .item-row img{width:60px;height:60px;border-radius:var(--radius);object-fit:cover}
+    .detail-items .item-info{flex:1}
+    .detail-items .item-info .name{font-weight:600;font-size:.9rem}
+    .detail-items .item-info .meta{font-size:.8rem;color:var(--gray-500)}
+    .detail-items .item-price{font-weight:700}
+
+    @media(max-width:768px){.detail-grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div id="navbar-mount"></div>
+  <main>
+    <div class="container orders-page" id="main-content"></div>
+  </main>
+  <div id="footer-mount"></div>
+
+  <script src="/js/store.js"></script>
+  <script src="/js/app.js"></script>
+  <script>
+    document.getElementById('navbar-mount').innerHTML = renderNavbar('orders');
+    document.getElementById('footer-mount').innerHTML = renderFooter();
+    initNavbar();
+
+    const params = new URLSearchParams(window.location.search);
+    const detailId = params.get('id');
+
+    if (detailId) { renderOrderDetail(detailId); }
+    else { renderOrderList(); }
+
+    function renderOrderList() {
+      const orders = Store.getOrders();
+      const mc = document.getElementById('main-content');
+
+      if (orders.length === 0) {
+        mc.innerHTML = `<div class="empty-state" style="padding:80px 20px">
+          <div style="width:80px;height:80px;margin:0 auto 16px;color:var(--gray-300)">${Icons.package}</div>
+          <h3>No orders yet</h3><p>Your order history will appear here once you make a purchase.</p>
+          <a href="/" class="btn btn-primary btn-lg" style="margin-top:16px">Start Shopping</a>
+        </div>`;
+        return;
+      }
+
+      const statusColors = { confirmed: 'badge-primary', shipped: 'badge-warning', delivered: 'badge-success', cancelled: 'badge-danger' };
+
+      mc.innerHTML = `<h1 class="slide-up" style="margin-bottom:24px">Order History</h1>
+        ${orders.map((o, i) => `
+        <div class="order-card slide-up delay-${Math.min(i + 1, 4)}">
+          <div class="order-header">
+            <div class="order-header-left">
+              <div class="order-header-item"><span class="label">Order ID</span><span class="value">${o.id}</span></div>
+              <div class="order-header-item"><span class="label">Date</span><span class="value">${new Date(o.date).toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'})}</span></div>
+              <div class="order-header-item"><span class="label">Items</span><span class="value">${o.items.length}</span></div>
+              <div class="order-header-item"><span class="label">Status</span><span class="badge ${statusColors[o.status] || 'badge-gray'}">${o.status}</span></div>
+            </div>
+          </div>
+          <div class="order-body">
+            <div class="order-items">${o.items.map(item => `<img src="${item.image}" alt="${item.name}" class="order-thumb" title="${item.name}">`).join('')}</div>
+          </div>
+          <div class="order-footer">
+            <div class="order-total">Total: ${formatPrice(o.total)}</div>
+            <div style="display:flex;gap:8px">
+              <a href="/orders?id=${o.id}" class="btn btn-outline btn-sm">View Details</a>
+              <button class="btn btn-ghost btn-sm" onclick="Toast.success('Invoice downloaded!')">${Icons.download} Invoice</button>
+            </div>
+          </div>
+        </div>`).join('')}`;
+    }
+
+    function renderOrderDetail(id) {
+      const order = Store.getOrder(id);
+      const mc = document.getElementById('main-content');
+
+      if (!order) {
+        mc.innerHTML = `<div class="empty-state"><h3>Order not found</h3><a href="/orders" class="btn btn-primary" style="margin-top:16px">Back to Orders</a></div>`;
+        return;
+      }
+
+      const timelineSteps = [
+        { title: 'Order Placed', date: new Date(order.date).toLocaleDateString(), active: true },
+        { title: 'Payment Confirmed', date: new Date(order.date).toLocaleDateString(), active: true },
+        { title: 'Packed', date: '', current: order.status === 'confirmed' },
+        { title: 'Shipped', date: '', current: order.status === 'shipped' },
+        { title: 'Delivered', date: '', active: order.status === 'delivered' },
+      ];
+
+      mc.innerHTML = `
+        <a href="/orders" class="detail-back slide-up">${Icons.arrowLeft} Back to Orders</a>
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:24px" class="slide-up">
+          <div><h1 style="font-size:1.5rem">${order.id}</h1><p class="text-muted text-sm">${new Date(order.date).toLocaleDateString('en-US', {weekday:'long',year:'numeric',month:'long',day:'numeric'})}</p></div>
+          <span class="badge badge-primary" style="font-size:.8rem;padding:6px 16px">${order.status}</span>
+        </div>
+
+        <div class="detail-block slide-up" style="margin-bottom:24px">
+          <h4>Order Timeline</h4>
+          <div class="timeline">
+            ${timelineSteps.map(s => `<div class="timeline-item">
+              <div class="timeline-dot ${s.active ? 'active' : ''} ${s.current ? 'current' : ''}">${s.active ? Icons.check : ''}</div>
+              <div class="timeline-title">${s.title}</div>
+              ${s.date ? `<div class="timeline-date">${s.date}</div>` : ''}
+            </div>`).join('')}
+          </div>
+        </div>
+
+        <div class="detail-block slide-up delay-1" style="margin-bottom:24px">
+          <h4>${Icons.package} Items</h4>
+          <div class="detail-items">
+            ${order.items.map(item => `<div class="item-row">
+              <img src="${item.image}" alt="${item.name}">
+              <div class="item-info"><div class="name">${item.name}</div><div class="meta">Qty: ${item.qty}</div></div>
+              <div class="item-price">${formatPrice(item.price * item.qty)}</div>
+            </div>`).join('')}
+          </div>
+        </div>
+
+        <div class="detail-grid slide-up delay-2">
+          <div class="detail-block">
+            <h4>${Icons.mapPin} Delivery Address</h4>
+            ${order.address ? `<p style="font-size:.85rem;color:var(--gray-600);line-height:1.7"><strong>${order.address.fullName}</strong><br>${order.address.line}<br>${order.address.city}, ${order.address.state} ${order.address.pin}<br>${order.address.phone}</p>` : '<p class="text-muted">N/A</p>'}
+          </div>
+          <div class="detail-block">
+            <h4>${Icons.creditCard} Payment Summary</h4>
+            <div class="detail-row"><span class="label">Subtotal</span><span>${formatPrice(order.subtotal)}</span></div>
+            <div class="detail-row"><span class="label">Shipping</span><span>${order.shippingCost === 0 ? 'Free' : formatPrice(order.shippingCost)}</span></div>
+            <div class="detail-row"><span class="label">Tax</span><span>${formatPrice(order.tax)}</span></div>
+            <hr class="divider" style="margin:8px 0">
+            <div class="detail-row"><span style="font-weight:700">Total</span><span style="font-weight:700;color:var(--primary)">${formatPrice(order.total)}</span></div>
+          </div>
+        </div>
+        <div style="text-align:center;padding:32px 0" class="slide-up delay-3">
+          <button class="btn btn-outline" onclick="Toast.success('Invoice downloaded!')">${Icons.download} Download Invoice</button>
+        </div>`;
+    }
+  </script>
+</body>
+</html>
